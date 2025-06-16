@@ -33,6 +33,17 @@ const parseDirectoryListing = (html: string): FileInfo[] => {
   const doc = parser.parseFromString(html, 'text/html');
   const files: FileInfo[] = [];
   
+  // Folders to exclude from the listing
+  const excludedFolders = [
+    'contact',
+    'dmca', 
+    'donate',
+    'faq',
+    'files',
+    'non-affiliation-disclaimer',
+    'upload'
+  ];
+  
   // Look for common directory listing patterns
   const links = doc.querySelectorAll('a[href]');
   
@@ -42,10 +53,19 @@ const parseDirectoryListing = (html: string): FileInfo[] => {
       return;
     }
     
-    const name = href.endsWith('/') ? href.slice(0, -1) : href;
+    let name = href.endsWith('/') ? href.slice(0, -1) : href;
     if (name === '' || name === '.' || name === '..') {
       return;
     }
+    
+    // Remove leading slash if present and check against excluded folders
+    const cleanName = name.startsWith('/') ? name.slice(1) : name;
+    if (excludedFolders.includes(cleanName.toLowerCase())) {
+      return;
+    }
+    
+    // Clean up %20 encoding and other URL encodings
+    name = decodeURIComponent(name);
     
     const isDirectory = href.endsWith('/');
     
