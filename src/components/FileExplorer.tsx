@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileItem } from '@/components/FileItem';
 import { fetchDirectoryContents } from '@/utils/fileService';
 import { toast } from 'sonner';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface FileExplorerProps {
   baseUrl: string;
@@ -16,10 +17,11 @@ interface FileExplorerProps {
 }
 
 export const FileExplorer = ({ baseUrl, currentPath, onPathChange }: FileExplorerProps) => {
-  const { data: files, isLoading, error } = useQuery({
+  const { data: files, isLoading, error, refetch } = useQuery({
     queryKey: ['directory', currentPath],
     queryFn: () => fetchDirectoryContents(baseUrl + currentPath),
-    retry: 2,
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const navigateUp = () => {
@@ -37,11 +39,22 @@ export const FileExplorer = ({ baseUrl, currentPath, onPathChange }: FileExplore
   };
 
   if (error) {
-    toast.error('Failed to load directory contents');
+    console.error('Directory loading error:', error);
     return (
       <Card className="p-6 text-center">
-        <p className="text-red-600 mb-4">Failed to load directory contents</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <div className="flex flex-col items-center gap-4">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <div>
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Failed to load directory</h3>
+            <p className="text-gray-600 mb-4">
+              Unable to fetch directory contents. This might be due to network restrictions or server issues.
+            </p>
+          </div>
+          <Button onClick={() => refetch()} className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </Button>
+        </div>
       </Card>
     );
   }
@@ -58,7 +71,7 @@ export const FileExplorer = ({ baseUrl, currentPath, onPathChange }: FileExplore
           ← Back
         </Button>
         <span className="text-sm text-gray-600">
-          {files?.length || 0} items
+          {isLoading ? 'Loading...' : `${files?.length || 0} items`}
         </span>
       </div>
 
@@ -67,10 +80,10 @@ export const FileExplorer = ({ baseUrl, currentPath, onPathChange }: FileExplore
         <div className="p-4 space-y-2">
           {isLoading ? (
             Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
+              <Skeleton key={i} className="h-16 w-full" />
             ))
-          ) : (
-            files?.map((file, index) => (
+          ) : files && files.length > 0 ? (
+            files.map((file, index) => (
               <FileItem
                 key={index}
                 file={file}
@@ -79,6 +92,10 @@ export const FileExplorer = ({ baseUrl, currentPath, onPathChange }: FileExplore
                 onFolderClick={navigateToFolder}
               />
             ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No files or folders found in this directory.</p>
+            </div>
           )}
         </div>
       </ScrollArea>
